@@ -2,6 +2,10 @@
 
 A service reliability workspace for coordinating incident response. React, TypeScript, Express and SQLite power six fictional services, a durable incident log, response updates, and a read-only status page.
 
+**[Open the live demo](https://relay-ops.onrender.com)** · [Demo status page](https://relay-ops.onrender.com/status)
+
+Each browser gets its own temporary workspace. Demo records expire after one hour or a service restart; a free-hosting cold start can take about a minute. Use fictional information only.
+
 ![Relay Ops workspace](docs/screenshots/workspace-1440.png)
 
 ## Quick start
@@ -106,6 +110,8 @@ npm run test:e2e
 Integration tests use isolated SQLite databases and cover persistence after reopening, atomic timelines, invalid payloads/references, malformed JSON, missing records and competing writers. Hosted-mode contracts additionally cover visitor separation, exact public fields, secure cookie attributes, expiry, CSRF checks, rate limits and storage caps. Browser tests run against production builds in both local and hosted-demo modes, exercise creation through resolution and reload, preserve drafts after delayed responses, cover empty/error/loading states, scan accessibility with axe, and inspect desktop, tablet and mobile layouts. Local E2E uses a fresh `data/e2e-<process-id>.sqlite`; hosted E2E uses temporary visitor databases. Screenshots are saved to `docs/screenshots`.
 
 GitHub Actions runs the same checks. Automated accessibility checks complement manual keyboard and screen-reader review.
+
+For an explicit smoke test of the deployed disposable demo, run `npx playwright test --config playwright.live.config.ts`. It uses isolated synthetic records and saves desktop/tablet/mobile screenshots under `live-results/screenshots`. The regular CI suite runs local servers and does not contact the live deployment.
 
 ## Demo boundaries
 

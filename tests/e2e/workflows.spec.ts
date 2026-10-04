@@ -145,7 +145,13 @@ test("declare, assign, resolve, reload and verify status page", async ({
 });
 test("responsive workspace, empty/error/loading states and accessibility", async ({
   page,
-}) => {
+}, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const screenshotDirectory =
+    testInfo.project.name === "live"
+      ? "live-results/screenshots"
+      : "docs/screenshots";
   await page.goto("/");
   await expect(
     page.getByRole("heading", { name: "Service health" }),
@@ -166,20 +172,22 @@ test("responsive workspace, empty/error/loading states and accessibility", async
   ]) {
     await page.setViewportSize({ width, height });
     await page.getByLabel("Search incidents").fill("");
+    await page.evaluate(() => document.fonts.ready);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBeTruthy();
     await page.screenshot({
-      path: `docs/screenshots/workspace-${width}.png`,
+      path: `${screenshotDirectory}/workspace-${width}.png`,
       fullPage: true,
     });
   }
   await page.goto("/status");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.screenshot({
-    path: "docs/screenshots/status-mobile.png",
+    path: `${screenshotDirectory}/status-mobile.png`,
     fullPage: true,
   });
+  expect(errors).toEqual([]);
 });

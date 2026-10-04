@@ -5,6 +5,11 @@ test("hosted demo isolates browsers while preserving each visitor workflow", asy
   browser,
   baseURL,
 }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const health = await page.request.get("/healthz");
+  expect(health.status()).toBe(200);
+  expect(await health.json()).toEqual({ status: "ok" });
   const response = await page.goto("/");
   expect(response?.headers()["content-security-policy"]).toContain(
     "frame-ancestors 'none'",
@@ -12,6 +17,12 @@ test("hosted demo isolates browsers while preserving each visitor workflow", asy
   await expect(
     page.getByText("Your own demo workspace.", { exact: false }),
   ).toBeVisible();
+  const cookie = (await page.context().cookies()).find((cookie) =>
+    cookie.name.endsWith("relay_demo"),
+  );
+  expect(cookie?.httpOnly).toBe(true);
+  expect(cookie?.secure).toBe(baseURL?.startsWith("https:"));
+  expect(cookie?.sameSite).toBe("Lax");
   await page.getByRole("button", { name: "Declare incident" }).click();
   const dialog = page.getByRole("dialog");
   await dialog
@@ -32,6 +43,7 @@ test("hosted demo isolates browsers while preserving each visitor workflow", asy
   const other = await browser.newContext({ baseURL });
   try {
     const otherPage = await other.newPage();
+    otherPage.on("pageerror", (error) => errors.push(error.message));
     await otherPage.goto("/");
     await expect(
       otherPage.getByRole("heading", { name: "Service health" }),
@@ -39,6 +51,21 @@ test("hosted demo isolates browsers while preserving each visitor workflow", asy
     await expect(
       otherPage.getByText("A private visitor demo draft"),
     ).toHaveCount(0);
+    const publicResponse = await page.request.get("/api/public/status");
+    expect(publicResponse.status()).toBe(200);
+    const projection = await publicResponse.json();
+    for (const service of projection.services)
+      expect(Object.keys(service).sort()).toEqual(["health", "id", "name"]);
+    for (const incident of projection.incidents)
+      expect(Object.keys(incident).sort()).toEqual([
+        "id",
+        "serviceId",
+        "status",
+        "summary",
+        "title",
+        "updatedAt",
+      ]);
+    expect(errors).toEqual([]);
     await otherPage.goto("/status");
     await expect(
       otherPage.getByRole("heading", { name: "Incident updates" }),
