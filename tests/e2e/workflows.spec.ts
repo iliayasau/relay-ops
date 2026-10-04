@@ -1,5 +1,73 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+for (const mode of ["create", "update"] as const) {
+  test(`late ${mode} response cannot dismiss a newer draft`, async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const dialog = page.getByRole("dialog");
+    if (mode === "create") {
+      await page.getByRole("button", { name: "Declare incident" }).click();
+      await dialog.getByLabel("Incident title").fill("Delayed save regression");
+      await dialog
+        .getByLabel("Initial update")
+        .fill("Testing a slow response without losing another draft.");
+    } else {
+      await page
+        .getByRole("button")
+        .filter({ hasText: "Elevated latency on core endpoints" })
+        .click();
+      await dialog
+        .getByLabel("Response update")
+        .fill("A delayed response should not close a later dialog.");
+    }
+    let release!: () => void;
+    let markSaved!: () => void;
+    const responseGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const serverSaved = new Promise<void>((resolve) => {
+      markSaved = resolve;
+    });
+    await page.route(
+      mode === "create" ? "**/api/incidents" : "**/api/incidents/*",
+      async (route) => {
+        const response = await route.fetch();
+        markSaved();
+        await responseGate;
+        await route.fulfill({ response });
+      },
+    );
+    await dialog
+      .getByRole("button", {
+        name: mode === "create" ? "Create incident" : "Save update",
+      })
+      .click();
+    await serverSaved;
+    if (mode === "create") await page.keyboard.press("Escape");
+    else await dialog.getByRole("button", { name: "Close dialog" }).click();
+    await expect(dialog).not.toBeVisible();
+    await page.getByRole("button", { name: "Declare incident" }).click();
+    await dialog
+      .getByLabel("Incident title")
+      .fill("New unsaved draft must survive");
+    await dialog
+      .getByLabel("Initial update")
+      .fill("Keep this text when the previous request finishes.");
+    release();
+    await expect(page.locator(".notice")).toContainText("saved successfully");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByLabel("Incident title")).toHaveValue(
+      "New unsaved draft must survive",
+    );
+    await expect(dialog.getByLabel("Initial update")).toHaveValue(
+      "Keep this text when the previous request finishes.",
+    );
+    await expect(
+      dialog.getByRole("button", { name: "Create incident" }),
+    ).toBeEnabled();
+  });
+}
 test("failed save preserves the form and keyboard dismissal restores focus", async ({
   page,
 }) => {
@@ -67,11 +135,9 @@ test("declare, assign, resolve, reload and verify status page", async ({
       statusRequests.push(new URL(request.url()).pathname);
   });
   await page.goto("/status");
-  const publicIncident = page
-    .locator(".public-incident")
-    .filter({
-      has: page.getByRole("heading", { name: "Object storage incident" }),
-    });
+  const publicIncident = page.locator(".public-incident").filter({
+    has: page.getByRole("heading", { name: "Object storage incident" }),
+  });
   await expect(publicIncident).toContainText("Resolved");
   await expect(page.getByText(title)).toHaveCount(0);
   await expect(page.getByText("Theo Martin")).toHaveCount(0);

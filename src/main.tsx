@@ -176,6 +176,8 @@ function App() {
   const [severity, setSeverity] = useState("All severities");
   const [selected, setSelected] = useState<Incident>();
   const [creating, setCreating] = useState(false);
+  const dialogSession = useRef(0);
+  const renderedSession = dialogSession.current;
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [demo, setDemo] = useState("Live");
@@ -215,11 +217,13 @@ function App() {
         .includes(query.toLowerCase()),
   );
   const close = () => {
+    dialogSession.current += 1;
     setSelected(undefined);
     setCreating(false);
   };
-  async function saved(id: number) {
-    close();
+  async function saved(id: number, session: number) {
+    // A dismissed request may finish after another draft has been opened.
+    if (session === dialogSession.current) close();
     setNotice(`INC-${id} saved successfully`);
     await refresh();
   }
@@ -344,7 +348,10 @@ function App() {
             </div>
             <button
               className="primary"
-              onClick={() => setCreating(true)}
+              onClick={() => {
+                dialogSession.current += 1;
+                setCreating(true);
+              }}
               disabled={!data}
             >
               <Plus size={17} />
@@ -499,7 +506,10 @@ function App() {
                           <button
                             className="incident-row"
                             key={i.id}
-                            onClick={() => setSelected(i)}
+                            onClick={() => {
+                              dialogSession.current += 1;
+                              setSelected(i);
+                            }}
                           >
                             <span
                               className={"severity " + i.severity.toLowerCase()}
@@ -575,8 +585,18 @@ function App() {
             <X size={20} />
           </button>
         </div>
-        {creating && <IncidentForm services={services} onSaved={saved} />}{" "}
-        {selected && <IncidentDetail incident={selected} onSaved={saved} />}
+        {creating && (
+          <IncidentForm
+            services={services}
+            onSaved={(id) => saved(id, renderedSession)}
+          />
+        )}{" "}
+        {selected && (
+          <IncidentDetail
+            incident={selected}
+            onSaved={(id) => saved(id, renderedSession)}
+          />
+        )}
       </dialog>
     </div>
   );
