@@ -7,7 +7,7 @@ export default defineConfig({
   webServer: {
     command: "node --import tsx server/index.ts --production",
     url: "http://127.0.0.1:3100",
-    env: { PORT: "3100", DATABASE_PATH: "data/e2e.sqlite" },
+    env: { PORT: "3100", DATABASE_PATH: `data/e2e-${process.pid}.sqlite` },
     reuseExistingServer: false,
   },
   projects: [{ name: "chromium", use: { browserName: "chromium" } }],

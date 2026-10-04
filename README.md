@@ -63,7 +63,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Integration tests use isolated SQLite databases and cover persistence after reopening, atomic timelines, invalid payloads/references, malformed JSON, missing records and competing writers. Browser tests run against the production build, exercise creation through resolution and reload, cover empty/error/loading states, scan accessibility with axe, and inspect desktop, tablet and mobile layouts. E2E uses `data/e2e.sqlite`; screenshots are saved to `docs/screenshots`.
+Integration tests use isolated SQLite databases and cover persistence after reopening, atomic timelines, invalid payloads/references, malformed JSON, missing records and competing writers. Browser tests run against the production build, exercise creation through resolution and reload, cover empty/error/loading states, scan accessibility with axe, and inspect desktop, tablet and mobile layouts. E2E uses a fresh `data/e2e-<process-id>.sqlite` per run; screenshots are saved to `docs/screenshots`.
 
 GitHub Actions runs the same checks. Automated accessibility checks complement manual keyboard and screen-reader review.
 

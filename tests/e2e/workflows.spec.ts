@@ -38,7 +38,7 @@ test("declare, assign, resolve, reload and verify status page", async ({
   await page.goto("/");
   await page.getByRole("button", { name: "Declare incident" }).click();
   const dialog = page.getByRole("dialog");
-  const title = `Storage disruption ${Date.now()}`;
+  const title = "Storage upload disruption";
   await dialog.getByLabel("Incident title").fill(title);
   await dialog.getByLabel("Affected service").selectOption("storage");
   await dialog.getByLabel("Severity", { exact: true }).selectOption("SEV1");
