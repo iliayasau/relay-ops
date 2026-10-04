@@ -159,6 +159,10 @@ function PublicStatusPage() {
             )}
           </>
         )}
+        <p className="session-note">
+          Hosted demo sessions are browser-specific and expire after one hour or
+          a service restart. Use fictional information only.
+        </p>
         <footer>
           Demo environment · Fictional services and incidents. No live
           monitoring.
