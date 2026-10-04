@@ -1,5 +1,37 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+test("failed save preserves the form and keyboard dismissal restores focus", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Declare incident" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Incident title").fill("Notification delivery issue");
+  await dialog
+    .getByLabel("Initial update")
+    .fill("Messages are delayed while the queue is investigated.");
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.route("**/api/incidents", (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Temporarily unavailable. Please retry." }),
+    }),
+  );
+  await dialog.getByRole("button", { name: "Create incident" }).click();
+  await expect(dialog.getByRole("alert")).toContainText(
+    "Temporarily unavailable",
+  );
+  await expect(dialog.getByLabel("Incident title")).toHaveValue(
+    "Notification delivery issue",
+  );
+  await page.unroute("**/api/incidents");
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Declare incident" }),
+  ).toBeFocused();
+});
 test("declare, assign, resolve, reload and verify status page", async ({
   page,
 }) => {
