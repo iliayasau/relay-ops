@@ -313,7 +313,10 @@ function App() {
           <div className="profile">
             <span className="avatar">RO</span>
             <div>
-              Relay operator<small>Local demo session</small>
+              Relay operator
+              <small>
+                {data?.demo ? "Your demo session" : "Local demo session"}
+              </small>
             </div>
           </div>
         </div>
@@ -379,6 +382,13 @@ function App() {
               </select>
             </label>
           </div>
+          {data?.demo && (
+            <p className="session-note">
+              Your own demo workspace. Changes expire after one hour and reset
+              when the service restarts or sleeps. Use fictional information
+              only.
+            </p>
+          )}
           <div role="status" className="notice">
             {notice}
           </div>
@@ -464,7 +474,7 @@ function App() {
                     </div>
                     <span className="live-label">
                       <span className="dot" />
-                      Persisted locally
+                      {data?.demo ? "Session storage" : "Persisted locally"}
                     </span>
                   </div>
                   <div className="incident-panel">
@@ -563,7 +573,7 @@ function App() {
           )}
           <footer>
             Relay Ops <span>Service reliability, thoughtfully organized.</span>
-            <span>DEMO / LOCAL</span>
+            <span>{data?.demo ? "DEMO / SANDBOX" : "DEMO / LOCAL"}</span>
           </footer>
         </main>
       </div>
@@ -652,7 +662,7 @@ function State({
           <p>
             {kind === "empty"
               ? "No incidents match this view. Try another filter or declare an incident."
-              : "We could not load the workspace. Your saved changes are safe."}
+              : "We could not load the workspace. Try again; hosted demo sessions may reset."}
           </p>
           {retry && <button onClick={retry}>Try again</button>}
         </>

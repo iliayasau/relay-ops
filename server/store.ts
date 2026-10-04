@@ -12,7 +12,10 @@ export class DomainError extends Error {
     super(message);
   }
 }
-export function openStore(path: string) {
+export function openStore(
+  path: string,
+  limits = { incidents: 1000, eventsPerIncident: 1000 },
+) {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
@@ -181,6 +184,14 @@ export function openStore(path: string) {
     create(input: unknown) {
       const value = createSchema.parse(input);
       return transaction(() => {
+        const count = db
+          .prepare("SELECT count(*) AS n FROM incidents")
+          .get() as { n: number };
+        if (count.n >= limits.incidents)
+          throw new DomainError(
+            409,
+            "This demo workspace has reached its incident limit.",
+          );
         if (
           !db.prepare("SELECT id FROM services WHERE id=?").get(value.serviceId)
         )
@@ -212,6 +223,11 @@ export function openStore(path: string) {
       const value = updateSchema.parse(input);
       return transaction(() => {
         const previous = get(id);
+        if (previous.events.length >= limits.eventsPerIncident)
+          throw new DomainError(
+            409,
+            "This demo incident has reached its update limit.",
+          );
         if (previous.version !== value.version)
           throw new DomainError(
             409,

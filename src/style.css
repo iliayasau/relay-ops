@@ -1239,3 +1239,8 @@ footer,
 .public-header .brand > span:last-child {
   color: #596d50;
 }
+.session-note {
+  color: #596d50;
+  font-size: 12px;
+  margin-top: 12px;
+}

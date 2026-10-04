@@ -50,7 +50,11 @@ export type Incident = z.infer<typeof createSchema> & {
   updatedAt: string;
   events: Event[];
 };
-export type Snapshot = { services: Service[]; incidents: Incident[] };
+export type Snapshot = {
+  services: Service[];
+  incidents: Incident[];
+  demo?: { mode: "public"; expiresAt: string };
+};
 export function serviceHealth(id: string, incidents: Incident[]) {
   const active = incidents.filter(
     (i) => i.serviceId === id && i.status !== "Resolved",

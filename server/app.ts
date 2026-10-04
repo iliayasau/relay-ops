@@ -2,26 +2,53 @@ import express from "express";
 import { ZodError } from "zod";
 import { DomainError, openStore } from "./store.ts";
 import { publicStatus } from "./public-status.ts";
-export function createApp(store: ReturnType<typeof openStore>) {
+import type { createDemo } from "./demo.ts";
+export function createApp(
+  store?: ReturnType<typeof openStore>,
+  demo?: ReturnType<typeof createDemo>,
+) {
+  if (!store && !demo)
+    throw new Error("A local store or isolated demo is required.");
   const app = express();
   app.disable("x-powered-by");
-  app.use(express.json({ limit: "16kb" }));
+  app.use((_req, res, next) => {
+    res.set({
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "no-referrer",
+      "X-Frame-Options": "DENY",
+    });
+    next();
+  });
+  app.get("/healthz", (_req, res) => res.json({ status: "ok" }));
   app.use("/api", (_req, res, next) => {
     res.set("Cache-Control", "no-store");
     next();
   });
-  app.get("/api/snapshot", (_req, res) => res.json(store.snapshot()));
+  app.use((req, res, next) => {
+    if (req.path.startsWith("/api/"))
+      res.locals.store = demo ? demo.resolve(req, res) : store;
+    next();
+  });
+  app.use(express.json({ limit: "16kb" }));
+  const requestStore = (res: express.Response) =>
+    res.locals.store as ReturnType<typeof openStore>;
+  app.get("/api/snapshot", (_req, res) =>
+    res.json({
+      ...requestStore(res).snapshot(),
+      ...(res.locals.demo ? { demo: res.locals.demo } : {}),
+    }),
+  );
   app.get("/api/public/status", (_req, res) =>
-    res.json(publicStatus(store.snapshot())),
+    res.json(publicStatus(requestStore(res).snapshot())),
   );
   app.post("/api/incidents", (req, res) => {
-    res.status(201).json(store.create(req.body));
+    res.status(201).json(requestStore(res).create(req.body));
   });
   app.patch("/api/incidents/:id", (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isSafeInteger(id) || id < 1)
       throw new DomainError(400, "Invalid incident identifier.");
-    res.json(store.update(id, req.body));
+    res.json(requestStore(res).update(id, req.body));
   });
   app.use("/api", (_req, res) => {
     res.status(404).json({ error: "Endpoint not found." });
