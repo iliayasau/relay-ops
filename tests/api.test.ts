@@ -14,6 +14,63 @@ const valid = {
   severity: "SEV1",
   assignee: "Maya Chen",
 };
+test("public status is an exact allowlist without operator content or internal fields", async () => {
+  const store = openStore(":memory:");
+  const app = createApp(store);
+  try {
+    const incident = store.create({
+      ...valid,
+      title: "Private internal title marker",
+      description: "Private infrastructure description marker",
+    });
+    store.update(incident.id, {
+      version: 1,
+      status: "Monitoring",
+      assignee: "Theo Martin",
+      note: "Private operator timeline marker",
+    });
+    const { body, headers } = await request(app)
+      .get("/api/public/status")
+      .expect(200);
+    assert.deepEqual(Object.keys(body).sort(), ["incidents", "services"]);
+    for (const service of body.services)
+      assert.deepEqual(Object.keys(service).sort(), ["health", "id", "name"]);
+    for (const row of body.incidents)
+      assert.deepEqual(Object.keys(row).sort(), [
+        "id",
+        "serviceId",
+        "status",
+        "summary",
+        "title",
+        "updatedAt",
+      ]);
+    const publicIncident = body.incidents.find(
+      (row: { id: number }) => row.id === incident.id,
+    );
+    assert.equal(publicIncident.title, "Object storage incident");
+    assert.equal(publicIncident.status, "Monitoring");
+    assert.equal(
+      publicIncident.summary,
+      "A recovery is being monitored before the incident is closed.",
+    );
+    assert.equal(
+      body.services.find((row: { id: string }) => row.id === "storage").health,
+      "Major outage",
+    );
+    assert.doesNotMatch(
+      JSON.stringify(body),
+      /Private|Maya Chen|Theo Martin|Alex Rivera|assignee|description|version|events|team|region|createdAt/,
+    );
+    assert.equal(headers["cache-control"], "no-store");
+    const internal = await request(app).get("/api/snapshot").expect(200);
+    assert.match(
+      JSON.stringify(internal.body),
+      /Private operator timeline marker/,
+    );
+  } finally {
+    store.db.close();
+  }
+});
 test("create, update, timeline and derived health persist across database reopen", async () => {
   const folder = mkdtempSync(join(tmpdir(), "relay-test-"));
   const path = join(folder, "test.sqlite");

@@ -61,8 +61,21 @@ test("declare, assign, resolve, reload and verify status page", async ({
   await page.getByRole("button").filter({ hasText: title }).click();
   await expect(dialog.getByText(/Assigned to Theo Martin/)).toBeVisible();
   await page.keyboard.press("Escape");
+  const statusRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/"))
+      statusRequests.push(new URL(request.url()).pathname);
+  });
   await page.goto("/status");
-  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  const publicIncident = page
+    .locator(".public-incident")
+    .filter({
+      has: page.getByRole("heading", { name: "Object storage incident" }),
+    });
+  await expect(publicIncident).toContainText("Resolved");
+  await expect(page.getByText(title)).toHaveCount(0);
+  await expect(page.getByText("Theo Martin")).toHaveCount(0);
+  expect(statusRequests).toEqual(["/api/public/status"]);
 });
 test("responsive workspace, empty/error/loading states and accessibility", async ({
   page,

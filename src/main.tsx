@@ -24,6 +24,7 @@ import {
   type Incident,
   type Snapshot,
 } from "./domain";
+import type { PublicStatus } from "./public-status";
 import "./style.css";
 import "@fontsource/dm-sans/400.css";
 import "@fontsource/dm-sans/500.css";
@@ -62,8 +63,111 @@ function Badge({ value }: { value: string }) {
     </span>
   );
 }
+function PublicStatusPage() {
+  const [data, setData] = useState<PublicStatus>();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  async function refresh() {
+    setLoading(true);
+    setError(false);
+    try {
+      setData(await api("/api/public/status"));
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    void refresh();
+  }, []);
+  const active =
+    data?.incidents.filter((incident) => incident.status !== "Resolved")
+      .length ?? 0;
+  return (
+    <div className="public-shell">
+      <header className="public-header">
+        <a className="brand" href="/">
+          <span className="logo">
+            <Radio />
+          </span>
+          relay<span>ops</span>
+        </a>
+        <a href="/">
+          Workspace <ArrowUpRight size={16} />
+        </a>
+      </header>
+      <main>
+        <div className="eyebrow">SERVICE STATUS · DEMO</div>
+        <h1>
+          Clear signals.
+          <br />A shared picture.
+        </h1>
+        <p className="intro">
+          Current service health and public incident summaries for the fictional
+          Relay workspace.
+        </p>
+        {loading ? (
+          <State kind="loading" />
+        ) : error ? (
+          <State kind="error" retry={refresh} />
+        ) : (
+          <>
+            <div className={"health-banner " + (active ? "degraded" : "")}>
+              <Activity />
+              <div>
+                <strong>
+                  {active
+                    ? "Some services are experiencing issues"
+                    : "All systems operational"}
+                </strong>
+                <p>{active} active incidents · Refresh for the latest status</p>
+              </div>
+              <button onClick={refresh}>Refresh</button>
+            </div>
+            <h2>Service health</h2>
+            <div className="service-grid">
+              {data?.services.map((service) => (
+                <article className="service-card" key={service.id}>
+                  <div className="service-top">
+                    <span className="service-icon">
+                      <Server size={17} />
+                    </span>
+                    <Badge value={service.health} />
+                  </div>
+                  <h3>{service.name}</h3>
+                  <p>Current reported service status</p>
+                </article>
+              ))}
+            </div>
+            <h2>Incident updates</h2>
+            {data?.incidents.length ? (
+              data.incidents.map((incident) => (
+                <article className="public-incident" key={incident.id}>
+                  <div className="row">
+                    <Badge value={incident.status} />
+                    <span className="muted">
+                      INC-{incident.id} · {time(incident.updatedAt)}
+                    </span>
+                  </div>
+                  <h3>{incident.title}</h3>
+                  <p>{incident.summary}</p>
+                </article>
+              ))
+            ) : (
+              <p>No incidents reported.</p>
+            )}
+          </>
+        )}
+        <footer>
+          Demo environment · Fictional services and incidents. No live
+          monitoring.
+        </footer>
+      </main>
+    </div>
+  );
+}
 function App() {
-  const isPublic = location.pathname === "/status";
   const [data, setData] = useState<Snapshot>();
   const [error, setError] = useState("");
   const [view, setView] = useState("Overview");
@@ -152,85 +256,6 @@ function App() {
       ))}
     </div>
   );
-  if (isPublic)
-    return (
-      <div className="public-shell">
-        <header className="public-header">
-          <a className="brand" href="/">
-            <span className="logo">
-              <Radio />
-            </span>
-            relay<span>ops</span>
-          </a>
-          <a href="/">
-            Workspace <ArrowUpRight size={16} />
-          </a>
-        </header>
-        <main>
-          <div className="eyebrow">SERVICE STATUS · DEMO</div>
-          <h1>
-            Clear signals.
-            <br />A shared picture.
-          </h1>
-          <p className="intro">
-            Current service health and incident updates for the fictional Relay
-            workspace.
-          </p>
-          {loading ? (
-            <State kind="loading" />
-          ) : error ? (
-            <State kind="error" retry={refresh} />
-          ) : (
-            <>
-              <div
-                className={"health-banner " + (active.length ? "degraded" : "")}
-              >
-                <Activity />
-                <div>
-                  <strong>
-                    {active.length
-                      ? "Some services are experiencing issues"
-                      : "All systems operational"}
-                  </strong>
-                  <p>
-                    {active.length} active incidents · Updated when you refresh
-                    this page
-                  </p>
-                </div>
-                <button onClick={refresh}>Refresh</button>
-              </div>
-              <h2>Service health</h2>
-              {serviceCards}
-              <h2>Incident updates</h2>
-              {incidents.length === 0 ? (
-                <State kind="empty" />
-              ) : (
-                incidents.map((i) => (
-                  <article className="public-incident" key={i.id}>
-                    <div className="row">
-                      <Badge value={i.status} />
-                      <span className="muted">{time(i.updatedAt)}</span>
-                    </div>
-                    <h3>{i.title}</h3>
-                    <p>{i.description}</p>
-                    {i.events.slice(0, 2).map((e) => (
-                      <p className="public-update" key={e.id}>
-                        <time>{time(e.createdAt)}</time>
-                        {e.body}
-                      </p>
-                    ))}
-                  </article>
-                ))
-              )}
-            </>
-          )}
-          <footer>
-            Demo environment · Fictional services and incidents. No live
-            monitoring.
-          </footer>
-        </main>
-      </div>
-    );
   return (
     <div className="app">
       <a className="skip" href="#main">
@@ -701,7 +726,9 @@ function IncidentForm({
         </p>
       )}
       <div className="form-actions">
-        <span>Updates appear on the demo status page.</span>
+        <span>
+          Only service and status summaries appear on the demo status page.
+        </span>
         <button className="primary" disabled={busy}>
           {busy ? "Saving…" : "Create incident"}
         </button>
@@ -802,6 +829,6 @@ function IncidentDetail({
 }
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    {location.pathname === "/status" ? <PublicStatusPage /> : <App />}
   </StrictMode>,
 );

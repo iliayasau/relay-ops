@@ -27,7 +27,7 @@ npm start
 - **Overview:** derived service health, response counts, incident filters and search.
 - **Incidents:** declare an incident, select severity and service, assign a lead, change status and append a required response note. Resolved incidents can be reopened.
 - **Services:** related service records with teams and regions. Signal bars are illustrative, not measured telemetry.
-- **Status page:** read-only health and incident updates. A local route, not a deployed public site.
+- **Status page:** read-only health and fixed public incident summaries. A local route, not a deployed public site. Internal titles, descriptions, notes and operator identities are never returned by its API.
 - **Preview state:** loading, empty and error presentations without changing stored data.
 
 Try declaring a SEV1 incident for Object storage, assigning Theo Martin, and resolving it with a recovery note. Reload and check the timeline and status page.
@@ -46,11 +46,12 @@ SQLite (services → incidents → events)
 
 `server/app.ts` maps validation and domain failures to JSON. The Node server runs Vite middleware in development and serves the production bundle after building. The client-rendered application needs no separate API process or CORS configuration.
 
-| Endpoint                   | Purpose                                        |
-| -------------------------- | ---------------------------------------------- |
-| `GET /api/snapshot`        | Services, incidents and history                |
-| `POST /api/incidents`      | Validated incident creation                    |
-| `PATCH /api/incidents/:id` | Versioned status/lead update and required note |
+| Endpoint                   | Purpose                                                        |
+| -------------------------- | -------------------------------------------------------------- |
+| `GET /api/snapshot`        | Services, incidents and history                                |
+| `POST /api/incidents`      | Validated incident creation                                    |
+| `GET /api/public/status`   | Allowlisted public service health and fixed incident summaries |
+| `PATCH /api/incidents/:id` | Versioned status/lead update and required note                 |
 
 ## Quality checks
 
@@ -71,9 +72,9 @@ GitHub Actions runs the same checks. Automated accessibility checks complement m
 
 All services, people and incidents are fictional. Metrics count those records; no real customers, measured uptime or production reliability are claimed. Seed timestamps are relative to first database creation.
 
-This is a **local single-workspace demo**, bound to loopback. There is no authentication, authorization, audit identity, ingestion, alert delivery, rate limiting, pagination or retention job. The status page displays descriptions and updates; do not enter confidential information. Creation has no replay key, so retrying after a lost response may create a duplicate. Refresh retrieves current data; there is no automatic polling. SQLite synchronous access suits this small dataset, not high-volume telemetry.
+This is a **local single-workspace demo**, bound to loopback. There is no authentication, authorization, audit identity, ingestion, alert delivery, rate limiting, pagination or retention job. The status page requests only `/api/public/status`: an explicit allowlist of service ID/name/health and incident ID/service ID/status/update time plus fixed, server-composed titles and summaries. All demo services and incident statuses are intended for this view; operator-authored titles, descriptions and timeline notes, assignments, versions, team and region details are excluded. This projection is not an authorization boundary: the internal API remains accessible locally. Do not enter confidential information. Creation has no replay key, so retrying after a lost response may create a duplicate. Refresh retrieves current data; there is no automatic polling. SQLite synchronous access suits this small dataset, not high-volume telemetry.
 
-Before internet deployment, add authenticated operators, a curated public status API, request limits, backups, migrations, observability and hosting-appropriate persistent storage. Public hosting is intentionally not configured.
+Before internet deployment, add authenticated operators, access controls for internal endpoints, explicit publication controls, request limits, backups, migrations, observability and hosting-appropriate persistent storage. Public hosting is intentionally not configured.
 
 ## References
 

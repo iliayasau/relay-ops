@@ -1,6 +1,7 @@
 import express from "express";
 import { ZodError } from "zod";
 import { DomainError, openStore } from "./store.ts";
+import { publicStatus } from "./public-status.ts";
 export function createApp(store: ReturnType<typeof openStore>) {
   const app = express();
   app.disable("x-powered-by");
@@ -10,6 +11,9 @@ export function createApp(store: ReturnType<typeof openStore>) {
     next();
   });
   app.get("/api/snapshot", (_req, res) => res.json(store.snapshot()));
+  app.get("/api/public/status", (_req, res) =>
+    res.json(publicStatus(store.snapshot())),
+  );
   app.post("/api/incidents", (req, res) => {
     res.status(201).json(store.create(req.body));
   });
